@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  text-to-speech-api:
+    image: text-to-speech-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app  # Updated this line to map the current directory to /app in the container
+

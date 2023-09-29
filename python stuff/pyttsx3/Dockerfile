@@ -4,17 +4,30 @@ FROM ubuntu:20.04
 # Prevent prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update and install dependencies, espeak, ffmpeg, and mbrola voices
-RUN apt-get update && \
-    apt-get install -y espeak ffmpeg wget python3-pip mbrola mbrola-us1 mbrola-us2 mbrola-us3 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Essential tools and libraries
+RUN apt-get clean
+RUN apt-get update 
+RUN apt-get install -y --fix-missing \
+    festival \
+    wget \
+    unzip \
+    python3 \
+    python3-pip
+
+# Fetch and install the CMU Arctic voices for Festival
+WORKDIR /opt
+RUN wget http://festvox.org/cmu_arctic/cmu_arctic/packed/cmu_us_bdl_arctic-0.95-release.tar.bz2
+RUN tar -xjf cmu_us_bdl_arctic-0.95-release.tar.bz2
+RUN mv cmu_us_bdl_arctic /usr/share/festival/voices/english/
 
 # Copy the app directory into the container
 COPY ./app /app
 
 # Set the working directory
 WORKDIR /app
+
+# Create audio_files directory within the container
+RUN mkdir audio_files
 
 # Install your app's Python dependencies
 # Assuming you have a requirements.txt file in the app/ directory

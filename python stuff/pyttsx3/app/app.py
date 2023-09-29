@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
+from flask import Flask, request, send_file, jsonify
 import subprocess
 import os
 
@@ -6,47 +6,35 @@ app = Flask(__name__)
 
 @app.route('/text-to-speech', methods=['POST'])
 def text_to_speech():
-    text = request.json.get('text', '')
-    voice = request.json.get('voice', 'en-us')
-    speed = request.json.get('speed', 150)
-    pitch = request.json.get('pitch', 50)
-
+    data = request.json
+    text = data.get('text', '')
+    
     if not text:
-        return {'error': 'No text provided'}, 400
+        return jsonify({'error': 'No text provided'}), 400
 
-    # Ensure the directory exists
-    if not os.path.exists("/app/audio_files"):
-        os.makedirs("/app/audio_files")
+    # Define paths
+    output_file = '/app/audio_files/output.wav'
+    
+    # Voice and its settings
+    voice = data.get('voice', None)  # Default is None, meaning let Festival decide
+    pitch = data.get('pitch', "100")
+    rate = data.get('rate', "1.0")
 
-    # Generate WAV file using espeak with MBROLA voice
-    wav_file = "/app/audio_files/output.wav"
-    subprocess.call(["espeak", "-w", wav_file, "-v", voice, "-s", str(speed), "-p", str(pitch), text])
+    # Convert text to speech
+    try:
+        if voice:
+            subprocess.call(f'echo "{text}" | text2wave -eval "(voice_{voice})" -o {output_file}', shell=True)
+        else:
+            subprocess.call(f'echo "{text}" | text2wave -o {output_file}', shell=True)
 
-    if not os.path.exists(wav_file):
-        return {"error": "WAV file was not generated. Check espeak logs for more details."}, 500
+        # TODO: Apply pitch and rate adjustments using another tool like `sox` if required.
 
-    # Convert WAV to MP3 using ffmpeg
-    mp3_file = "/app/audio_files/output.mp3"
-    process = subprocess.Popen(["ffmpeg", "-i", wav_file, mp3_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    # Log ffmpeg output for debugging
-    print("FFMPEG STDOUT:", stdout.decode())
-    print("FFMPEG STDERR:", stderr.decode())
-
-    # Check if the MP3 file exists before attempting to open it
-    if os.path.exists(mp3_file):
-        with open(mp3_file, 'rb') as f:
-            mp3_data = f.read()
-
-        # Optionally, remove temporary files
-        os.remove(wav_file)
-        os.remove(mp3_file)
-
-        return Response(mp3_data, content_type='audio/mpeg')
-
-    else:
-        return {"error": "MP3 file was not generated. Check ffmpeg logs for more details."}, 500
+        # Read WAV bytes and return as response
+        with open(output_file, 'rb') as f:
+            audio_data = f.read()
+        return send_file(output_file, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': 'An error occurred', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
