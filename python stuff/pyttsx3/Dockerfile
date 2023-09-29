@@ -1,9 +1,12 @@
-# Use a Debian-based Python image as the base image
-FROM python:3.8-slim-buster
+# Use an Ubuntu-based image
+FROM ubuntu:20.04
 
-# Install espeak for pyttsx3 on Linux
+# Prevent prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install dependencies, espeak, ffmpeg, and mbrola voices
 RUN apt-get update && \
-    apt-get install -y espeak && \
+    apt-get install -y espeak ffmpeg wget python3-pip mbrola mbrola-us1 mbrola-us2 mbrola-us3 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -15,7 +18,7 @@ WORKDIR /app
 
 # Install your app's Python dependencies
 # Assuming you have a requirements.txt file in the app/ directory
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 # Run your app
-CMD ["python", "app.py"]
+CMD ["python3", "app.py"]
